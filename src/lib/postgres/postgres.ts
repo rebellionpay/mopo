@@ -26,7 +26,6 @@ class Postgres {
             .on('notification', (m) => Logger.log('info', m))
             .on('error', (err) => Logger.log('info', err))
             .on('notice', (m) => Logger.log('info', m))
-            .on('drain', () => Logger.log('info', 'POSTGRES CONNECTION DRAIN'))
             .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }
     async disconnect(): Promise<void> {

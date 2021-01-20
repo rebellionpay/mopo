@@ -36,7 +36,7 @@ async function main(options: OptionValues): Promise<void> {
                     await syncAll(mongo, postgres, collection, table);
                 }
 
-                mongo.listen(collection, <MongoOperation[]>operations, (change: WatchResponse) => {
+                mongo.listen(collection, <MongoOperation[]>operations, async (change: WatchResponse) => {
                     if (change.additional) {
                         switch (change.additional) {
                             case 'close':
@@ -57,7 +57,7 @@ async function main(options: OptionValues): Promise<void> {
                             const { toInsert } = <InsertResponse>change;
                             const insertConverted = convertToPostgresValues(toInsert, table.columns);
 
-                            postgres.insert(table, insertConverted);
+                            await postgres.insert(table, insertConverted);
                             break;
                         case MongoOperation.UPDATE:
                             Logger.log('debug', 'UPDATE DOCUMENT OF ' + table.tableName);
@@ -66,7 +66,7 @@ async function main(options: OptionValues): Promise<void> {
                             const convertedWheresUpdate: PostgresValue[] = convertToPostgresValues(updateWheres, table.columns);
                             const updateConverted = convertToPostgresValues(toUpdate, table.columns);
 
-                            postgres.update(table, updateConverted, (toDelete as string[]), convertedWheresUpdate);
+                            await postgres.update(table, updateConverted, (toDelete as string[]), convertedWheresUpdate);
                             break;
                         case MongoOperation.DELETE:
                             Logger.log('debug', 'DELETE DOCUMENT OF ' + table.tableName);
@@ -74,7 +74,7 @@ async function main(options: OptionValues): Promise<void> {
                             const { wheres: deleteWheres } = <DeleteResponse>change;
                             const convertedWheresDelete: PostgresValue[] = convertToPostgresValues(deleteWheres, table.columns);
 
-                            postgres.delete(table, convertedWheresDelete);
+                            await postgres.delete(table, convertedWheresDelete);
                             break;
                         default:
                             Logger.log('debug', 'NOT IMPLEMENTED ERROR', change);
@@ -97,7 +97,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
 
             bar.start(totalDocs, 0);
 
-            mongo.findBulk({}, collection, (res: WatchResponse) => {
+            mongo.findBulk({}, collection, async (res: WatchResponse) => {
                 if (res.additional) {
                     switch (res.additional) {
                         case 'close':
@@ -115,7 +115,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
 
                 const { toInsert } = <InsertResponse>res;
                 const insertConverted = convertToPostgresValues(toInsert, table.columns)
-                postgres.insert(table, insertConverted);
+                await postgres.insert(table, insertConverted);
                 bar.increment();
             });
         } catch (error) {

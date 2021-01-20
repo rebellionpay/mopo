@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import EventEmitter from 'events';
+
 import Logger from '../logger';
 import { MongoOperation } from './MongoOperation';
 import { WatchResponse } from './WatchResponse';
@@ -7,10 +9,12 @@ class Mongo {
     uri: string;
     options: mongoose.ConnectOptions;
     client: mongoose.Mongoose | undefined;
+    queueChangesListener: EventEmitter;
 
     constructor(uri: string, options: mongoose.ConnectOptions) {
         this.uri = uri;
         this.options = options;
+        this.queueChangesListener = new EventEmitter();
     }
 
     async start() {
@@ -36,31 +40,34 @@ class Mongo {
         return await mongoose.connection.collection(collection).countDocuments(filter);
     }
 
-    async findBulk(filter: object = {}, collection: string, callback: (res: WatchResponse) => void) {
+    async findBulk(filter: object = {}, collection: string, callback: (res: WatchResponse) => Promise<void>) {
         const mCollection = mongoose.connection.collection(collection);
         const query = mCollection.find(filter).stream();
         query.on('error', (err) => Logger.log('error', 'mongoose findAll error', err));
         query.on('close', () => callback({ additional: 'close' }));
         query.on('end', () => callback({ additional: 'end' }));
-        query.on('data', (doc) => {
-            callback({
+        query.on('data', async (doc) => {
+            query.pause();
+            await callback({
                 toInsert: doc
             });
+            query.resume();
         });
     }
-    async listen(collection: string, operations: MongoOperation[], callback: (res: WatchResponse) => void) {
+    async listen(collection: string, operations: MongoOperation[], callback: (res: WatchResponse) => Promise<void>) {
         Logger.log('debug', `Launching ${require.main?.filename}/listen - ${collection}`);
         const wantedOperations: string[] = operations.map((operation) => operation.toString());
         const mCollection = mongoose.connection.collection(collection);
 
-        const changeStream = mCollection.watch();
+        const changeStream = mCollection.watch().stream();
 
         changeStream
             .on('error', (err) => Logger.log('error', 'mongoose changeStream error', err))
             .on('close', () => callback({ additional: 'close' }))
             .on('end', () => callback({ additional: 'end' }))
-            .on('change', (change: any) => {
+            .on('data', async (change: any) => {
                 if (wantedOperations.indexOf(change.operationType) > -1) {
+                    changeStream.pause();
                     let toReturn: WatchResponse = change;
                     switch (change.operationType) {
                         case MongoOperation.INSERT.toString():
@@ -87,7 +94,8 @@ class Mongo {
                             break;
                     }
                     toReturn = { ...toReturn, ...{ clusterTime: change.clusterTime, ns: change.ns } };
-                    callback(toReturn);
+                    await callback(toReturn);
+                    changeStream.resume();
                 }
             });
     }
