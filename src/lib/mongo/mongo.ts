@@ -41,7 +41,7 @@ class Mongo {
         const query = mCollection.find(filter).stream();
         query.on('error', (err) => Logger.log('error', 'mongoose findAll error', err));
         query.on('close', () => callback({ additional: 'close' }));
-        query.on('end', () => callback({ additional: 'close' }));
+        query.on('end', () => callback({ additional: 'end' }));
         query.on('data', (doc) => {
             callback({
                 toInsert: doc
