@@ -9,7 +9,7 @@
   ],
   "author": "Rebellion Pay",
   "license": "MIT",
-  "repository": "",
+  "repository": "https://github.com/rebellionpay/mopo",
   "main": "src/index",
   "types": "dist/index.d.ts",
   "files": [
@@ -42,7 +42,6 @@
     "lodash": "^4.17.20",
     "mongoose": "^5.11.12",
     "pg": "^8.5.1",
-    "pg-escape": "^0.2.0",
     "winston": "^3.3.3"
   }
 }
