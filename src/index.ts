@@ -89,10 +89,10 @@ async function main(options: OptionValues): Promise<void> {
 }
 
 function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: PostgresTable) {
-    const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-    Logger.log('debug', 'START syncAll ' + table.tableName);
     return new Promise(async (resolve, reject) => {
         try {
+            const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+            Logger.log('info', 'START syncAll ' + table.tableName);
             const totalDocs = await mongo.countDocuments({}, collection);
 
             bar.start(totalDocs, 0);
@@ -101,13 +101,12 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                 if (res.additional) {
                     switch (res.additional) {
                         case 'close':
-                            bar.stop();
-                            Logger.log('debug', 'Mongo findBulk close');
-                            resolve(true);
-                            return;
+                            Logger.log('debug', 'Mongo findBulk close ' + collection);
                             break;
                         case 'end':
+                            bar.stop();
                             Logger.log('debug', 'Mongo findBulk end');
+                            resolve(true);
                         default:
                             break;
                     }
