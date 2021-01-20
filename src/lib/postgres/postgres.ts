@@ -16,7 +16,18 @@ class Postgres {
 
     async connect(): Promise<void> {
         Logger.log('debug', `Launching postgres/connect`);
-        return this.client.connect();
+        await this.client.connect();
+        this.prepare();
+    }
+
+    async prepare() {
+        Logger.log('debug', `Launching postgres/prepare`);
+        this.client
+            .on('notification', (m) => Logger.log('info', m))
+            .on('error', (err) => Logger.log('info', err))
+            .on('notice', (m) => Logger.log('info', m))
+            .on('drain', () => Logger.log('info', 'POSTGRES CONNECTION DRAIN'))
+            .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }
     async disconnect(): Promise<void> {
         Logger.log('debug', `Launching postgres/disconnect`);
