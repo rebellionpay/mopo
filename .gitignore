@@ -1,0 +1,8 @@
+# Generated directories:
+dist/
+node_modules/
+
+# Project files:
+*.sublime-*
+
+.mopo.json

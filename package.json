@@ -1,0 +1,48 @@
+{
+  "name": "@rebellionpay/mopo",
+  "version": "0.0.1",
+  "description": "A program to syncronize data from mongodb to postgresql.",
+  "keywords": [
+    "typescript",
+    "mongodb",
+    "postgresql"
+  ],
+  "author": "Rebellion Pay",
+  "license": "MIT",
+  "repository": "",
+  "main": "src/index",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run lint && tsc",
+    "clean": "rm -r ./dist || true",
+    "clean:all": "npm run clean && (rm -r ./node_modules || true)",
+    "lint": "tslint src/**/*.ts",
+    "prepare": "npm run build",
+    "upgrade": "npx npm-check -u"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.8.0",
+    "@types/lodash": "^4.14.167",
+    "@types/mocha": "^8.0.0",
+    "@types/node": "^14.0.5",
+    "@types/pg": "^7.14.8",
+    "@types/winston": "^2.4.4",
+    "ts-node": "^9.1.1",
+    "tslint": "^6.0.0",
+    "typescript": "^4.1.3"
+  },
+  "dependencies": {
+    "@types/exit-hook": "^2.2.1",
+    "cli-progress": "^3.8.2",
+    "commander": "^7.0.0",
+    "exit-hook": "^2.2.0",
+    "lodash": "^4.17.20",
+    "mongoose": "^5.11.12",
+    "pg": "^8.5.1",
+    "pg-escape": "^0.2.0",
+    "winston": "^3.3.3"
+  }
+}
