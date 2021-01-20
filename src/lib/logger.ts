@@ -16,8 +16,8 @@ class Logger {
     }
 
     static log = (type: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly', ...args: any[]) => {
-
-        Logger.logger.log(type, args.join(' | '));
+        const argsStr = args.map((arg) => typeof arg === 'object' ? JSON.stringify(arg) : arg);
+        Logger.logger.log(type, argsStr.join(' | '));
     };
 }
 
