@@ -42,9 +42,9 @@ function convertFields(col: ColumnType, value: any) {
 }
 function covertDate(date: Date): string {
     const dateString =
-        ('0' + date.getUTCDate()).slice(-2) + '-' +
+        date.getUTCFullYear() + '-' +
         ('0' + (date.getUTCMonth() + 1)).slice(-2) + '-' +
-        date.getUTCFullYear() + ' ' +
+        ('0' + date.getUTCDate()).slice(-2) + ' ' +
 
         date.toLocaleTimeString()
     return dateString;
