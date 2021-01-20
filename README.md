@@ -22,7 +22,7 @@ Mopo is a simple cli tool for replicating MongoDB to PostgreSQL in realtime.
 
 ## Installation
 ```
-git clone <uri> mopo && cd mopo
+git clone https://github.com/rebellionpay/mopo mopo && cd mopo
 npm i
 npm run build
 ```
