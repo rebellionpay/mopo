@@ -18,6 +18,7 @@ interface Config {
         {
             collection: string;
             watchOperations: string[];
+            syncAll: boolean;
         }
     ]
 };

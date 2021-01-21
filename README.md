@@ -63,7 +63,7 @@ Create a new `.mopo.json` file like this:
     "mongo": {
         "connection": {
             "uri": "<MONGOQUERY>",
-            "options": { // MONGO connection options
+            "options": {
                 "useNewUrlParser": true,
                 "useUnifiedTopology": true,
                 "auto_reconnect": true
@@ -81,7 +81,7 @@ Create a new `.mopo.json` file like this:
     },
     "postgres": {
         "connection": {
-            "config": { // postgres config
+            "config": {
                 "host": "localhost",
                 "database": "exampleDB"
             }
@@ -90,6 +90,7 @@ Create a new `.mopo.json` file like this:
     "sync": [
         {
             "collection": "users",
+            "syncAll": true,
             "watchOperations": [
                 "INSERT",
                 "UPDATE"

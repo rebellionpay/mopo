@@ -8,8 +8,13 @@ import { Postgres } from './lib/postgres/postgres';
 import { PostgresTable } from './lib/postgres/PostgresTable';
 import PostgresValue from './lib/postgres/PostgresValue';
 import { convertToPostgresValues } from './utils/postgres.util';
-import cliProgress from 'cli-progress';
+import { MultiProgressBars } from 'multi-progress-bars';
 import exitHook from 'exit-hook';
+import chalk from 'chalk';
+
+
+const mpb = new MultiProgressBars({ persist: true, anchor: 'top', border: '-' });
+let countTasks = 0;
 
 async function main(options: OptionValues): Promise<void> {
     try {
@@ -24,7 +29,7 @@ async function main(options: OptionValues): Promise<void> {
             await postgres.connect();
             prepareExit(mongo, postgres);
 
-            for (const { collection, watchOperations } of config.sync) {
+            for (const { collection, watchOperations, syncAll: syncAllConfig } of config.sync) {
                 const tableSchema = config.mongo.collectionModels[collection];
 
                 const table = await postgres.createTable(collection, tableSchema);
@@ -32,7 +37,7 @@ async function main(options: OptionValues): Promise<void> {
                 let operations: (MongoOperation | undefined)[] = watchOperations.map((operationStr) => parseMongoOperation(operationStr));
                 operations = operations.filter((op) => typeof op !== 'undefined');
 
-                if (options.syncAll) {
+                if (options.syncAll && syncAllConfig) {
                     await syncAll(mongo, postgres, collection, table);
                 }
 
@@ -82,6 +87,7 @@ async function main(options: OptionValues): Promise<void> {
                     }
                 });
             }
+            mpb.close();
         }
     } catch (error) {
         Logger.log('error', 'ERROR', error);
@@ -90,12 +96,13 @@ async function main(options: OptionValues): Promise<void> {
 
 function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: PostgresTable) {
     return new Promise(async (resolve, reject) => {
+        const taskName = 'SYNC ALL ' + collection;
+
         try {
-            const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+            mpb.addTask(taskName, { type: 'percentage', index: countTasks++, barColorFn: chalk.red });
             Logger.log('info', 'START syncAll ' + table.tableName);
             const totalDocs = await mongo.countDocuments({}, collection);
-
-            bar.start(totalDocs, 0);
+            let count = 0;
 
             mongo.findBulk({}, collection, async (res: WatchResponse) => {
                 if (res.additional) {
@@ -104,7 +111,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                             Logger.log('debug', 'Mongo findBulk close ' + collection);
                             break;
                         case 'end':
-                            bar.stop();
+                            mpb.done(taskName, { message: 'end sync', barColorFn: chalk.blue });
                             Logger.log('debug', 'Mongo findBulk end');
                             resolve(true);
                         default:
@@ -116,7 +123,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                 const { toInsert } = <InsertResponse>res;
                 const insertConverted = convertToPostgresValues(toInsert, table.columns)
                 await postgres.insert(table, insertConverted);
-                bar.increment();
+                mpb.updateTask(taskName, { percentage: count++ / totalDocs });
             });
         } catch (error) {
             reject(error);
@@ -138,7 +145,7 @@ const program = new Command();
 
 program
     .option('-s, --start <config file>', 'start sync with config file')
-    .option('-sa, --sync-all', 'Sync all data first')
+    .option('-sa, --sync-all', 'Sync all data if syncAll in config sync')
     .option('-l, --log-level <level>', 'Log level');
 
 program.parse(process.argv);

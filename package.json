@@ -36,11 +36,11 @@
   },
   "dependencies": {
     "@types/exit-hook": "^2.2.1",
-    "cli-progress": "^3.8.2",
     "commander": "^7.0.0",
     "exit-hook": "^2.2.0",
     "lodash": "^4.17.20",
     "mongoose": "^5.11.12",
+    "multi-progress-bars": "^3.1.2",
     "pg": "^8.5.1",
     "winston": "^3.3.3"
   }
