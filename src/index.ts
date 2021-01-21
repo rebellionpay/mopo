@@ -123,7 +123,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                 const { toInsert } = <InsertResponse>res;
                 const insertConverted = convertToPostgresValues(toInsert, table.columns)
                 await postgres.insert(table, insertConverted);
-                mpb.updateTask(taskName, { percentage: count++ / totalDocs });
+                mpb.updateTask(taskName, { percentage: count++ / totalDocs, message: `${count}/${totalDocs}` });
             });
         } catch (error) {
             reject(error);
