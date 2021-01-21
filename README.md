@@ -14,6 +14,7 @@
     <li><a href="#installation">Installation</a></li>
     <li><a href="#installation">Configuration</a></li>
     <li><a href="#installation">Usage</a></li>
+    <li><a href="#attribution">Attribution</a></li>
   </ol>
 </details>
 
@@ -126,3 +127,7 @@ Options:
   -l, --log-level <level>    Log level
   -h, --help                 display help for command
 ```
+
+## Attribution
+
+<div>Icons made by <a href="https://www.flaticon.com/authors/icongeek26" title="Icongeek26">Icongeek26</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
