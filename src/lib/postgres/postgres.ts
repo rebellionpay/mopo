@@ -47,7 +47,7 @@ class Postgres {
         deleteIgnoredColumns(values, opt.columnsToIgnore);
 
         const colList = values.map((v) => JSON.stringify(v.columnName));
-        const valList = values.map((v) => v.value ? `\$\$${v.value}\$\$` : 'NULL');
+        const valList = values.map((v) => v.value ? `\$\$${(Array.isArray(v.value) || typeof v.value === 'object') ? JSON.stringify(v.value) : v.value}\$\$` : 'NULL');
         const baseSQL = '%s INTO "%s" (%s) VALUES (%s)';
         const sql = Utils.format(baseSQL, opt.replace ? 'REPLACE' : 'INSERT', table.tableName, colList.join(', '), valList.join(', '));
         Logger.log('debug', "INSERT", sql);
@@ -59,7 +59,7 @@ class Postgres {
             return Logger.log('warn', 'Trying to update without fields', JSON.stringify(wheres));
         };
         deleteIgnoredColumns(values, opt.columnsToIgnore);
-        const setList = values.map((v) => `"${v.columnName}" = \$\$${v.value}\$\$`);
+        const setList = values.map((v) => `"${v.columnName}" = \$\$${(Array.isArray(v.value) || typeof v.value === 'object') ? JSON.stringify(v.value) : v.value}\$\$`);
         const toDeleteList = toDeleteValues.map((td) => `"${td}" = NULL"`);
         const whereList = wheres.map((w) => `"${w.columnName}" = \$\$${w.value}\$\$`);
         const baseSQL = 'UPDATE "%s" SET %s WHERE %s';
