@@ -60,7 +60,7 @@ class Postgres {
         };
         deleteIgnoredColumns(values, opt.columnsToIgnore);
         const setList = values.map((v) => `"${v.columnName}" = \$\$${(Array.isArray(v.value) || typeof v.value === 'object') ? JSON.stringify(v.value) : v.value}\$\$`);
-        const toDeleteList = toDeleteValues.map((td) => `"${td}" = NULL"`);
+        const toDeleteList = toDeleteValues.map((td) => `"${td}" = NULL`);
         const whereList = wheres.map((w) => `"${w.columnName}" = \$\$${w.value}\$\$`);
         const baseSQL = 'UPDATE "%s" SET %s WHERE %s';
 
