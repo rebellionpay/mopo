@@ -33,7 +33,11 @@ function convertFields(col: ColumnType, value: any) {
     let newValue = value;
     switch (col.type) {
         case 'TIMESTAMP':
-            newValue = covertDate(new Date(value));
+            const date = new Date(value);
+            newValue = 'INFINITY';
+            if (!isNaN(date.getTime()) && date <= new Date()) {
+                newValue = covertDate(date);
+            }
             break;
         default:
             break;
@@ -42,11 +46,11 @@ function convertFields(col: ColumnType, value: any) {
 }
 function covertDate(date: Date): string {
     const dateString =
-        date.getUTCFullYear() + '-' +
+        `${date.getUTCFullYear()}`.padStart(4, '0') + '-' +
         ('0' + (date.getUTCMonth() + 1)).slice(-2) + '-' +
         ('0' + date.getUTCDate()).slice(-2) + ' ' +
 
-        date.toLocaleTimeString()
+        date.toLocaleTimeString();
     return dateString;
 }
 

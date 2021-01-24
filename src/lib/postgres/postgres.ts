@@ -5,7 +5,7 @@ import { columnsToCreateTableStr } from '../../utils/postgres.util';
 import Logger from '../logger';
 import { ColumnType, PostgresTable } from './PostgresTable';
 import PostgresValue from './PostgresValue';
-
+import escape from 'pg-escape';
 class Postgres {
     client: Client;
 
@@ -15,13 +15,13 @@ class Postgres {
     }
 
     async connect(): Promise<void> {
-        Logger.log('debug', `Launching postgres/connect`);
+        Logger.log('info', `Launching postgres/connect`);
         await this.client.connect();
         this.prepare();
     }
 
     async prepare() {
-        Logger.log('debug', `Launching postgres/prepare`);
+        Logger.log('info', `Launching postgres/prepare`);
         this.client
             .on('notification', (m) => Logger.log('info', m))
             .on('error', (err) => Logger.log('info', err))
@@ -29,7 +29,7 @@ class Postgres {
             .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }
     async disconnect(): Promise<void> {
-        Logger.log('debug', `Launching postgres/disconnect`);
+        Logger.log('info', `Launching postgres/disconnect`);
         return this.client.end();
     }
 
@@ -47,7 +47,7 @@ class Postgres {
         deleteIgnoredColumns(values, opt.columnsToIgnore);
 
         const colList = values.map((v) => JSON.stringify(v.columnName));
-        const valList = values.map((v) => v.value ? `\$\$${(Array.isArray(v.value) || typeof v.value === 'object') ? JSON.stringify(v.value) : v.value}\$\$` : 'NULL');
+        const valList = values.map((v) => v.value ? escape.dollarQuotedString((v.value.toString() === '[object Object]' || Array.isArray(v.value)) ? JSON.stringify(v.value) : v.value) : 'NULL');
         const baseSQL = '%s INTO "%s" (%s) VALUES (%s)';
         const sql = Utils.format(baseSQL, opt.replace ? 'REPLACE' : 'INSERT', table.tableName, colList.join(', '), valList.join(', '));
         Logger.log('debug', "INSERT", sql);
@@ -59,9 +59,9 @@ class Postgres {
             return Logger.log('warn', 'Trying to update without fields', JSON.stringify(wheres));
         };
         deleteIgnoredColumns(values, opt.columnsToIgnore);
-        const setList = values.map((v) => `"${v.columnName}" = \$\$${(Array.isArray(v.value) || typeof v.value === 'object') ? JSON.stringify(v.value) : v.value}\$\$`);
+        const setList = values.map((v) => `"${v.columnName}" = ${escape.dollarQuotedString((v.value.toString() === '[object Object]' || Array.isArray(v.value)) ? JSON.stringify(v.value) : v.value)}`);
         const toDeleteList = toDeleteValues.map((td) => `"${td}" = NULL`);
-        const whereList = wheres.map((w) => `"${w.columnName}" = \$\$${w.value}\$\$`);
+        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape.dollarQuotedString((w.value.toString() === '[object Object]' || Array.isArray(w.value)) ? JSON.stringify(w.value) : w.value)}`);
         const baseSQL = 'UPDATE "%s" SET %s WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, [...setList, ...toDeleteList].join(', '), whereList.join(' AND '));
@@ -70,7 +70,7 @@ class Postgres {
     }
 
     async delete(table: PostgresTable, wheres: PostgresValue[], opt: {} = {}): Promise<void> {
-        const whereList = wheres.map((w) => `"${w.columnName}" = \$\$${w.value}\$\$`);
+        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape.dollarQuotedString((w.value.toString() === '[object Object]' || Array.isArray(w.value)) ? JSON.stringify(w.value) : w.value)}`);
         const baseSQL = 'DELETE FROM "%s" WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, whereList.join(' AND '));
