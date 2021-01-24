@@ -18,21 +18,21 @@ class Mongo {
     }
 
     async start() {
-        Logger.log('debug', `Launching mongo/start`);
+        Logger.log('info', `Launching mongo/start`);
         await this.connect();
         this.prepare();
     }
     async connect(): Promise<void> {
-        Logger.log('debug', `Launching mongo/connect`);
+        Logger.log('info', `Launching mongo/connect`);
         this.client = await mongoose.connect(this.uri, this.options);
     }
     async disconnect(): Promise<void> {
-        Logger.log('debug', `Launching mongo/disconnect`);
+        Logger.log('info', `Launching mongo/disconnect`);
         return this.client?.disconnect();
     }
 
     async prepare() {
-        Logger.log('debug', `Launching mongo/prepare`);
+        Logger.log('info', `Launching mongo/prepare`);
         mongoose.connection.on('error', (err) => Logger.log('error', 'mongoose error', err));
     }
 
@@ -42,20 +42,31 @@ class Mongo {
 
     async findBulk(filter: object = {}, collection: string, callback: (res: WatchResponse) => Promise<void>) {
         const mCollection = mongoose.connection.collection(collection);
-        const query = mCollection.find(filter).stream();
-        query.on('error', (err) => Logger.log('error', 'mongoose findAll error', err));
-        query.on('close', () => callback({ additional: 'close' }));
-        query.on('end', () => callback({ additional: 'end' }));
-        query.on('data', async (doc) => {
-            query.pause();
+
+        let resolvedCount = 0;
+        const cursor = mCollection.find(filter).skip(resolvedCount).stream();
+        Logger.log('info', `Launching mongo/findBulk`, `withIndex: ${resolvedCount}`);
+        cursor.on('error', async (err) => {
+            Logger.log('error', 'mongoose findAll error', err);
+
+            if (!cursor.isClosed()) {
+                await cursor.close();
+            }
+            this.findBulk(filter, collection, callback); // recursive
+        });
+        cursor.on('close', () => callback({ additional: 'close' }));
+        cursor.on('end', () => callback({ additional: 'end' }));
+        cursor.on('data', async (doc) => {
+            cursor.pause();
             await callback({
                 toInsert: doc
             });
-            query.resume();
+            resolvedCount += 1;
+            cursor.resume();
         });
     }
     async listen(collection: string, operations: MongoOperation[], callback: (res: WatchResponse) => Promise<void>) {
-        Logger.log('debug', `Launching ${require.main?.filename}/listen - ${collection}`);
+        Logger.log('info', `Launching ${require.main?.filename}/listen - ${collection}`);
         const wantedOperations: string[] = operations.map((operation) => operation.toString());
         const mCollection = mongoose.connection.collection(collection);
 
