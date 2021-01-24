@@ -18,7 +18,7 @@ let countTasks = 0;
 
 async function main(options: OptionValues): Promise<void> {
     try {
-        new Logger({ level: options.logLevel || 'debug' });
+        new Logger({ level: options.logLevel || 'info' });
 
         if (options.start) {
             const config: Config = await loadConfig(options.start);
@@ -45,10 +45,10 @@ async function main(options: OptionValues): Promise<void> {
                     if (change.additional) {
                         switch (change.additional) {
                             case 'close':
-                                Logger.log('debug', 'Mongo listen close');
+                                Logger.log('verbose', 'Mongo listen close');
                                 break;
                             case 'end':
-                                Logger.log('debug', 'Mongo listen end');
+                                Logger.log('verbose', 'Mongo listen end');
                             default:
                                 break;
                         }
@@ -57,7 +57,7 @@ async function main(options: OptionValues): Promise<void> {
 
                     switch (change.operation) {
                         case MongoOperation.INSERT:
-                            Logger.log('debug', 'INSERTING DOCUMENT OF ' + table.tableName);
+                            Logger.log('verbose', 'INSERTING DOCUMENT OF ' + table.tableName);
 
                             const { toInsert } = <InsertResponse>change;
                             const insertConverted = convertToPostgresValues(toInsert, table.columns);
@@ -65,7 +65,7 @@ async function main(options: OptionValues): Promise<void> {
                             await postgres.insert(table, insertConverted);
                             break;
                         case MongoOperation.UPDATE:
-                            Logger.log('debug', 'UPDATE DOCUMENT OF ' + table.tableName);
+                            Logger.log('verbose', 'UPDATE DOCUMENT OF ' + table.tableName);
 
                             const { toUpdate, toDelete, wheres: updateWheres } = <UpdateResponse>change;
                             const convertedWheresUpdate: PostgresValue[] = convertToPostgresValues(updateWheres, table.columns);
@@ -74,7 +74,7 @@ async function main(options: OptionValues): Promise<void> {
                             await postgres.update(table, updateConverted, (toDelete as string[]), convertedWheresUpdate);
                             break;
                         case MongoOperation.DELETE:
-                            Logger.log('debug', 'DELETE DOCUMENT OF ' + table.tableName);
+                            Logger.log('verbose', 'DELETE DOCUMENT OF ' + table.tableName);
 
                             const { wheres: deleteWheres } = <DeleteResponse>change;
                             const convertedWheresDelete: PostgresValue[] = convertToPostgresValues(deleteWheres, table.columns);
@@ -82,7 +82,7 @@ async function main(options: OptionValues): Promise<void> {
                             await postgres.delete(table, convertedWheresDelete);
                             break;
                         default:
-                            Logger.log('debug', 'NOT IMPLEMENTED ERROR', change);
+                            Logger.log('verbose', 'NOT IMPLEMENTED ERROR', change);
                             break;
                     }
                 });
@@ -108,11 +108,11 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                 if (res.additional) {
                     switch (res.additional) {
                         case 'close':
-                            Logger.log('debug', 'Mongo findBulk close ' + collection);
+                            Logger.log('verbose', 'Mongo findBulk close ' + collection);
                             break;
                         case 'end':
                             mpb.done(taskName, { message: 'end sync', barColorFn: chalk.blue });
-                            Logger.log('debug', 'Mongo findBulk end');
+                            Logger.log('verbose', 'Mongo findBulk end');
                             resolve(true);
                         default:
                             break;
@@ -134,7 +134,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
 
 function prepareExit(mongo: Mongo, postgres: Postgres): void {
     exitHook(async () => {
-        Logger.log('debug', 'Disconnecting from databases');
+        Logger.log('info', 'Disconnecting from databases');
         await mongo.disconnect();
         await postgres.disconnect();
     });

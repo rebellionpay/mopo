@@ -24,7 +24,7 @@ interface Config {
 };
 
 function loadConfig(path: string): Promise<Config> {
-    Logger.log('debug', 'Loading config from path: ' + path);
+    Logger.log('info', 'Loading config from path: ' + path);
     return new Promise((resolve, reject) => {
         fs.readFile(path, 'utf8', (err: any, data: string) => {
             if (err) return reject(err);
