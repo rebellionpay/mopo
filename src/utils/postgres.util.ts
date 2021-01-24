@@ -35,7 +35,7 @@ function convertFields(col: ColumnType, value: any) {
         case 'TIMESTAMP':
             const date = new Date(value);
             newValue = 'INFINITY';
-            if (!isNaN(date.getTime()) && date <= new Date()) {
+            if (!isNaN(date.getTime())) {
                 newValue = covertDate(date);
             }
             break;
