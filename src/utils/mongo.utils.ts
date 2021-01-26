@@ -6,8 +6,8 @@ function getColumnsFromSchema(tableSchema: { [key: string]: any }): ColumnType[]
     const columns: ColumnType[] = [];
     const keys: string[] = Object.keys(tableSchema);
     for (const columnName of keys) {
-        const type = tableSchema[columnName];
-        columns.push({ columnName, type });
+        const { type, primary, unique } = tableSchema[columnName];
+        columns.push({ columnName, type, primary, unique });
     }
 
     return columns;

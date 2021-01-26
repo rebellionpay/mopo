@@ -8,6 +8,7 @@ interface GeneralResponse {
     },
     operation?: MongoOperation;
     additional?: 'close' | 'end';
+    hasNext?: boolean
 }
 
 interface InsertResponse extends GeneralResponse {

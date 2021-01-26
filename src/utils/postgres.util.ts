@@ -1,13 +1,14 @@
 import Util from 'util';
 import { ColumnType } from '../lib/postgres/PostgresTable';
 import PostgresValue from '../lib/postgres/PostgresValue';
+import PGEscape from 'pg-escape';
 
 
 function columnsToCreateTableStr(columns: ColumnType[]): string {
     const formatted = [];
     for (const col of columns) {
-        const line = '"%s" %s';
-        formatted.push(Util.format(line, col.columnName, col.type));
+        const line = '"%s" %s%s%s';
+        formatted.push(Util.format(line, col.columnName, col.type, col.primary ? ' PRIMARY KEY' : '', (col.unique && !col.primary) ? ' UNIQUE' : ''));
     }
 
     return formatted.join(', ');
@@ -54,4 +55,8 @@ function covertDate(date: Date): string {
     return dateString;
 }
 
-export { columnsToCreateTableStr, convertToPostgresValues, covertDate };
+function escape(value: any): string {
+    return value ? PGEscape.dollarQuotedString((value.toString() === '[object Object]' || Array.isArray(value)) ? JSON.stringify(value) : value) : 'NULL';
+}
+
+export { columnsToCreateTableStr, convertToPostgresValues, covertDate, escape };

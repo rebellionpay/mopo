@@ -1,20 +1,19 @@
 import { Command, OptionValues } from 'commander';
+import exitHook from 'exit-hook';
+import ora from 'ora';
+
 import { Config, loadConfig } from "./lib/config";
 import Logger from './lib/logger';
 import { Mongo } from "./lib/mongo/mongo";
 import { MongoOperation, parseMongoOperation } from "./lib/mongo/MongoOperation";
-import { DeleteResponse, InsertResponse, UpdateResponse, WatchResponse } from './lib/mongo/WatchResponse';
+import Timer from './lib/timer';
 import { Postgres } from './lib/postgres/postgres';
+import { DeleteResponse, InsertResponse, UpdateResponse, WatchResponse } from './lib/mongo/WatchResponse';
 import { PostgresTable } from './lib/postgres/PostgresTable';
 import PostgresValue from './lib/postgres/PostgresValue';
+
 import { convertToPostgresValues } from './utils/postgres.util';
-import { MultiProgressBars } from 'multi-progress-bars';
-import exitHook from 'exit-hook';
-import chalk from 'chalk';
 
-
-const mpb = new MultiProgressBars({ persist: true, anchor: 'top', border: '-' });
-let countTasks = 0;
 
 async function main(options: OptionValues): Promise<void> {
     try {
@@ -38,10 +37,15 @@ async function main(options: OptionValues): Promise<void> {
                 operations = operations.filter((op) => typeof op !== 'undefined');
 
                 if (options.syncAll && syncAllConfig) {
-                    await syncAll(mongo, postgres, collection, table);
+                    await syncAll(mongo, postgres, collection, table, {
+                        bulkInsert: {
+                            active: typeof options.bulkInsert !== 'undefined',
+                            bufferLimit: parseInt(options.bulkInsert, 10),
+                        }
+                    });
                 }
 
-                mongo.listen(collection, <MongoOperation[]>operations, async (change: WatchResponse) => {
+                mongo.listen(collection, operations as MongoOperation[], async (change: WatchResponse) => {
                     if (change.additional) {
                         switch (change.additional) {
                             case 'close':
@@ -59,7 +63,7 @@ async function main(options: OptionValues): Promise<void> {
                         case MongoOperation.INSERT:
                             Logger.log('verbose', 'INSERTING DOCUMENT OF ' + table.tableName);
 
-                            const { toInsert } = <InsertResponse>change;
+                            const { toInsert } = change as InsertResponse;
                             const insertConverted = convertToPostgresValues(toInsert, table.columns);
 
                             await postgres.insert(table, insertConverted);
@@ -67,7 +71,7 @@ async function main(options: OptionValues): Promise<void> {
                         case MongoOperation.UPDATE:
                             Logger.log('verbose', 'UPDATE DOCUMENT OF ' + table.tableName);
 
-                            const { toUpdate, toDelete, wheres: updateWheres } = <UpdateResponse>change;
+                            const { toUpdate, toDelete, wheres: updateWheres } = change as UpdateResponse;
                             const convertedWheresUpdate: PostgresValue[] = convertToPostgresValues(updateWheres, table.columns);
                             const updateConverted = convertToPostgresValues(toUpdate, table.columns);
 
@@ -76,7 +80,7 @@ async function main(options: OptionValues): Promise<void> {
                         case MongoOperation.DELETE:
                             Logger.log('verbose', 'DELETE DOCUMENT OF ' + table.tableName);
 
-                            const { wheres: deleteWheres } = <DeleteResponse>change;
+                            const { wheres: deleteWheres } = change as DeleteResponse;
                             const convertedWheresDelete: PostgresValue[] = convertToPostgresValues(deleteWheres, table.columns);
 
                             await postgres.delete(table, convertedWheresDelete);
@@ -87,31 +91,32 @@ async function main(options: OptionValues): Promise<void> {
                     }
                 });
             }
-            mpb.close();
         }
     } catch (error) {
         Logger.log('error', 'ERROR', error);
     }
 }
 
-function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: PostgresTable) {
+function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: PostgresTable, opt: { bulkInsert: { bufferLimit: number, active: boolean } }) {
     return new Promise(async (resolve, reject) => {
-        const taskName = 'SYNC ALL ' + collection;
+        const spinner = ora({ prefixText: 'SYNC ALL ' + collection, color: 'red' });
+        const timer = new Timer();
 
         try {
-            mpb.addTask(taskName, { type: 'percentage', index: countTasks++, barColorFn: chalk.red });
+            spinner.start();
             Logger.log('info', 'START syncAll ' + table.tableName);
             const totalDocs = await mongo.countDocuments({}, collection);
             let count = 0;
 
             mongo.findBulk({}, collection, async (res: WatchResponse) => {
+                count += 1;
                 if (res.additional) {
                     switch (res.additional) {
                         case 'close':
                             Logger.log('verbose', 'Mongo findBulk close ' + collection);
                             break;
                         case 'end':
-                            mpb.done(taskName, { message: 'end sync', barColorFn: chalk.blue });
+                            spinner.succeed(`${count}/${totalDocs} - ${(count / totalDocs * 100).toFixed(2)}% | ${timer.seconds}s`)
                             Logger.log('verbose', 'Mongo findBulk end');
                             resolve(true);
                         default:
@@ -120,12 +125,14 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
                     return;
                 }
 
-                const { toInsert } = <InsertResponse>res;
+                const { toInsert } = res as InsertResponse;
                 const insertConverted = convertToPostgresValues(toInsert, table.columns)
-                await postgres.insert(table, insertConverted);
-                mpb.updateTask(taskName, { percentage: count++ / totalDocs, message: `${count}/${totalDocs}` });
+                await postgres.insert(table, insertConverted, { useQueue: { active: opt.bulkInsert.active, bufferLimit: opt.bulkInsert.bufferLimit, forceSend: !res.hasNext } });
+
+                spinner.text = `${count}/${totalDocs} - ${(count / totalDocs * 100).toFixed(2)}% | ${timer.seconds}s`;
             });
         } catch (error) {
+            spinner.fail(`Sync failed at ${timer.seconds}s`);
             reject(error);
         }
     })
@@ -146,6 +153,7 @@ const program = new Command();
 program
     .option('-s, --start <config file>', 'start sync with config file')
     .option('-sa, --sync-all', 'Sync all data if syncAll in config sync')
+    .option('-bi, --bulk-insert <number>', 'Number of documents to insert at once (only works if --sync-all enabled). Default 10.')
     .option('-l, --log-level <level>', 'Log level');
 
 program.parse(process.argv);

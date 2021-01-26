@@ -1,6 +1,8 @@
 interface ColumnType {
     columnName: string;
     type: string;
+    primary?: boolean;
+    unique?: boolean;
 };
 
 interface PostgresTable {

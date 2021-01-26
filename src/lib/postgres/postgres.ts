@@ -1,13 +1,14 @@
 import { Client, ClientConfig } from 'pg';
 import Utils from 'util';
 import { deleteIgnoredColumns, getColumnsFromSchema } from '../../utils/mongo.utils';
-import { columnsToCreateTableStr } from '../../utils/postgres.util';
+import { columnsToCreateTableStr, escape } from '../../utils/postgres.util';
 import Logger from '../logger';
 import { ColumnType, PostgresTable } from './PostgresTable';
 import PostgresValue from './PostgresValue';
-import escape from 'pg-escape';
+
 class Postgres {
     client: Client;
+    insertBuffer: PostgresValue[][] = [];
 
     constructor(config: string | ClientConfig) {
         const client = new Client(config);
@@ -43,13 +44,36 @@ class Postgres {
         return table;
     }
 
-    async insert(table: PostgresTable, values: PostgresValue[], opt: { replace: boolean, columnsToIgnore: string[] } = { replace: false, columnsToIgnore: ['__v'] }): Promise<void> {
-        deleteIgnoredColumns(values, opt.columnsToIgnore);
+    async insert(table: PostgresTable, values: PostgresValue[], opt: { replace?: boolean, columnsToIgnore?: string[], useQueue: { active?: boolean, bufferLimit?: number, forceSend?: boolean } } = { replace: false, columnsToIgnore: ['__v'], useQueue: { active: false, bufferLimit: 10, forceSend: false } }): Promise<void> {
+        deleteIgnoredColumns(values, opt.columnsToIgnore || []);
+        let valList = [];
+        let colList = [];
+        let baseSQL = '%s INTO "%s" (%s) VALUES %s';
 
-        const colList = values.map((v) => JSON.stringify(v.columnName));
-        const valList = values.map((v) => v.value ? escape.dollarQuotedString((v.value.toString() === '[object Object]' || Array.isArray(v.value)) ? JSON.stringify(v.value) : v.value) : 'NULL');
-        const baseSQL = '%s INTO "%s" (%s) VALUES (%s)';
+        if (opt.useQueue.active || opt.useQueue.forceSend) {
+            this.insertBuffer.push(values);
+            if (this.insertBuffer.length === opt.useQueue.bufferLimit || opt.useQueue.forceSend) {
+
+                colList = table.columns.map((col) => JSON.stringify(col.columnName)); // we need all columns
+                valList = this.insertBuffer.map((bufferValues) => {
+                    return `(${table.columns.map((col) => {
+                        const valueFound = bufferValues.find((v) => col.columnName === v.columnName);
+                        return valueFound ? escape(valueFound.value) : 'NULL';
+                    }).join(', ')})`;
+                });
+
+                this.insertBuffer = []; // clear
+            } else {
+                return Promise.resolve();
+            }
+        } else {
+            baseSQL = '%s INTO "%s" (%s) VALUES (%s)';
+            valList = values.map((v) => escape(v.value));
+            colList = values.map((v) => JSON.stringify(v.columnName));
+        }
+
         const sql = Utils.format(baseSQL, opt.replace ? 'REPLACE' : 'INSERT', table.tableName, colList.join(', '), valList.join(', '));
+
         Logger.log('debug', "INSERT", sql);
         await this.client.query(sql);
     }
@@ -59,9 +83,9 @@ class Postgres {
             return Logger.log('warn', 'Trying to update without fields', JSON.stringify(wheres));
         };
         deleteIgnoredColumns(values, opt.columnsToIgnore);
-        const setList = values.map((v) => `"${v.columnName}" = ${escape.dollarQuotedString((v.value.toString() === '[object Object]' || Array.isArray(v.value)) ? JSON.stringify(v.value) : v.value)}`);
+        const setList = values.map((v) => `"${v.columnName}" = ${escape(v.value)}`);
         const toDeleteList = toDeleteValues.map((td) => `"${td}" = NULL`);
-        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape.dollarQuotedString((w.value.toString() === '[object Object]' || Array.isArray(w.value)) ? JSON.stringify(w.value) : w.value)}`);
+        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape(w.value)}`);
         const baseSQL = 'UPDATE "%s" SET %s WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, [...setList, ...toDeleteList].join(', '), whereList.join(' AND '));
@@ -70,7 +94,7 @@ class Postgres {
     }
 
     async delete(table: PostgresTable, wheres: PostgresValue[], opt: {} = {}): Promise<void> {
-        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape.dollarQuotedString((w.value.toString() === '[object Object]' || Array.isArray(w.value)) ? JSON.stringify(w.value) : w.value)}`);
+        const whereList = wheres.map((w) => `"${w.columnName}" = ${escape(w.value)}`);
         const baseSQL = 'DELETE FROM "%s" WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, whereList.join(' AND '));

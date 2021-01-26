@@ -59,7 +59,8 @@ class Mongo {
         cursor.on('data', async (doc) => {
             cursor.pause();
             await callback({
-                toInsert: doc
+                toInsert: doc,
+                hasNext: cursor.isClosed() ? false : (await cursor.hasNext()),
             });
             resolvedCount += 1;
             cursor.resume();

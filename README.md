@@ -72,11 +72,22 @@ Create a new `.mopo.json` file like this:
         },
         "collectionModels": {
             "users": {
-                "_id": "TEXT",
-                "email": "TEXT",
-                "name": "TEXT",
-                "createdAt": "TIMESTAMP",
-                "updatedAt": "TIMESTAMP"
+                "_id": {
+                    "type": "TEXT",
+                    "primary": true
+                },
+                "email": {
+                    "type": "TEXT"
+                },
+                "name": {
+                    "type": "TEXT"
+                },
+                "createdAt": {
+                    "type": "TIMESTAMP"
+                },
+                "updatedAt": {
+                    "type": "TIMESTAMP"
+                }
             }
         }
     },
@@ -108,7 +119,7 @@ Create a new `.mopo.json` file like this:
 Currently these native types are supported:
 
 - `BIGINT`
-- `TINYINT`
+- `BOOLEAN`
 - `VARCHAR`
 - `DATE`
 - `TIMESTAMP`
@@ -123,7 +134,8 @@ Usage: index [options]
 
 Options:
   -s, --start <config file>  start sync with config file
-  -sa, --sync-all            Sync all data first
+  -sa, --sync-all            Sync all data first if schema syncAll enabled
+  -bi, --bulk-insert <number>  Number of documents to insert at once (only works if --sync-all enabled). Default 10.
   -l, --log-level <level>    Log level
   -h, --help                 display help for command
 ```
