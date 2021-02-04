@@ -45,8 +45,12 @@ async function main(options: OptionValues): Promise<void> {
                     });
                 }
 
-                mongo.listen(collection, operations as MongoOperation[], async (change: WatchResponse) => {
-                    if (change.additional) {
+                mongo.listen(collection, operations as MongoOperation[], async (change?: WatchResponse, error?: Error) => {
+                    if (error) {
+                        return Logger.log('error', error);
+                    }
+
+                    if (change?.additional) {
                         switch (change.additional) {
                             case 'close':
                                 Logger.log('verbose', 'Mongo listen close');
@@ -59,7 +63,8 @@ async function main(options: OptionValues): Promise<void> {
                         return;
                     }
 
-                    switch (change.operation) {
+
+                    switch (change?.operation) {
                         case MongoOperation.INSERT:
                             Logger.log('verbose', 'INSERTING DOCUMENT OF ' + table.tableName);
 
@@ -108,9 +113,13 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
             const totalDocs = await mongo.countDocuments({}, collection);
             let count = 0;
 
-            mongo.findBulk({}, collection, async (res: WatchResponse) => {
+            mongo.findBulk({}, collection, async (res?: WatchResponse, error?: Error) => {
                 count += 1;
-                if (res.additional) {
+                if (error) {
+                    return Logger.log('error', 'FINDBULK ERROR', error);
+                }
+
+                if (res?.additional) {
                     switch (res.additional) {
                         case 'close':
                             Logger.log('verbose', 'Mongo findBulk close ' + collection);
@@ -127,7 +136,7 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
 
                 const { toInsert } = res as InsertResponse;
                 const insertConverted = convertToPostgresValues(toInsert, table.columns)
-                await postgres.insert(table, insertConverted, { useQueue: { active: opt.bulkInsert.active, bufferLimit: opt.bulkInsert.bufferLimit, forceSend: !res.hasNext } });
+                await postgres.insert(table, insertConverted, { useQueue: { active: opt.bulkInsert.active, bufferLimit: opt.bulkInsert.bufferLimit, forceSend: !res?.hasNext } });
 
                 spinner.text = `${count}/${totalDocs} - ${(count / totalDocs * 100).toFixed(2)}% | ${timer.seconds}s`;
             });

@@ -40,7 +40,7 @@ class Mongo {
         return await mongoose.connection.collection(collection).countDocuments(filter);
     }
 
-    async findBulk(filter: object = {}, collection: string, callback: (res: WatchResponse) => Promise<void>) {
+    async findBulk(filter: object = {}, collection: string, callback: (res?: WatchResponse, error?: Error) => Promise<void>) {
         const mCollection = mongoose.connection.collection(collection);
 
         let resolvedCount = 0;
@@ -57,16 +57,21 @@ class Mongo {
         cursor.on('close', () => callback({ additional: 'close' }));
         cursor.on('end', () => callback({ additional: 'end' }));
         cursor.on('data', async (doc) => {
-            cursor.pause();
-            await callback({
-                toInsert: doc,
-                hasNext: cursor.isClosed() ? false : (await cursor.hasNext()),
-            });
-            resolvedCount += 1;
-            cursor.resume();
+            try {
+                cursor.pause();
+                await callback({
+                    toInsert: doc,
+                    hasNext: cursor.isClosed() ? false : (await cursor.hasNext()),
+                });
+            } catch (error) {
+                await callback(undefined, error);
+            } finally {
+                resolvedCount += 1;
+                cursor.resume();
+            }
         });
     }
-    async listen(collection: string, operations: MongoOperation[], callback: (res: WatchResponse) => Promise<void>) {
+    async listen(collection: string, operations: MongoOperation[], callback: (res?: WatchResponse, error?: Error) => Promise<void>) {
         Logger.log('info', `Launching ${require.main?.filename}/listen - ${collection}`);
         const wantedOperations: string[] = operations.map((operation) => operation.toString());
         const mCollection = mongoose.connection.collection(collection);
@@ -79,35 +84,41 @@ class Mongo {
             .on('end', () => callback({ additional: 'end' }))
             .on('data', async (change: any) => {
                 if (wantedOperations.indexOf(change.operationType) > -1) {
-                    changeStream.pause();
-                    let toReturn: WatchResponse = change;
-                    switch (change.operationType) {
-                        case MongoOperation.INSERT.toString():
-                            toReturn = {
-                                toInsert: change.fullDocument,
-                                operation: MongoOperation.INSERT,
-                            };
-                            break;
-                        case MongoOperation.UPDATE.toString():
-                            toReturn = {
-                                toUpdate: change.updateDescription.updatedFields,
-                                toDelete: change.updateDescription.removedFields,
-                                wheres: change.documentKey,
-                                operation: MongoOperation.UPDATE,
-                            };
-                            break;
-                        case MongoOperation.DELETE.toString():
-                            toReturn = {
-                                wheres: change.documentKey,
-                                operation: MongoOperation.DELETE,
-                            };
-                            break;
-                        default:
-                            break;
+                    try {
+                        changeStream.pause();
+                        let toReturn: WatchResponse = change;
+                        switch (change.operationType) {
+                            case MongoOperation.INSERT.toString():
+                                toReturn = {
+                                    toInsert: change.fullDocument,
+                                    operation: MongoOperation.INSERT,
+                                };
+                                break;
+                            case MongoOperation.UPDATE.toString():
+                                toReturn = {
+                                    toUpdate: change.updateDescription.updatedFields,
+                                    toDelete: change.updateDescription.removedFields,
+                                    wheres: change.documentKey,
+                                    operation: MongoOperation.UPDATE,
+                                };
+                                break;
+                            case MongoOperation.DELETE.toString():
+                                toReturn = {
+                                    wheres: change.documentKey,
+                                    operation: MongoOperation.DELETE,
+                                };
+                                break;
+                            default:
+                                break;
+                        }
+                        toReturn = { ...toReturn, clusterTime: change.clusterTime, ns: change.ns };
+                        await callback(toReturn);
+                    } catch (error) {
+                        await callback(undefined, error);
+                    } finally {
+                        changeStream.resume();
                     }
-                    toReturn = { ...toReturn, ...{ clusterTime: change.clusterTime, ns: change.ns } };
-                    await callback(toReturn);
-                    changeStream.resume();
+
                 }
             });
     }
