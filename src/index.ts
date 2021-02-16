@@ -1,11 +1,12 @@
+#!/usr/bin/env node
 import { Command, OptionValues } from 'commander';
 import exitHook from 'exit-hook';
 import ora from 'ora';
 
-import { Config, loadConfig } from "./lib/config";
+import { Config, loadConfig } from './lib/config';
 import Logger from './lib/logger';
-import { Mongo } from "./lib/mongo/mongo";
-import { MongoOperation, parseMongoOperation } from "./lib/mongo/MongoOperation";
+import { Mongo } from './lib/mongo/mongo';
+import { MongoOperation, parseMongoOperation } from './lib/mongo/MongoOperation';
 import Timer from './lib/timer';
 import { Postgres } from './lib/postgres/postgres';
 import { DeleteResponse, InsertResponse, UpdateResponse, WatchResponse } from './lib/mongo/WatchResponse';
@@ -17,6 +18,7 @@ import { convertToPostgresValues } from './utils/postgres.util';
 
 async function main(options: OptionValues): Promise<void> {
     try {
+        // tslint:disable-next-line: no-unused-expression
         new Logger({ level: options.logLevel || 'info' });
 
         if (options.start) {
@@ -165,6 +167,7 @@ program
     .option('-bi, --bulk-insert <number>', 'Number of documents to insert at once (only works if --sync-all enabled). Default 10.')
     .option('-l, --log-level <level>', 'Log level');
 
+if (process.argv.length === 2) program.help();
 program.parse(process.argv);
 
 main(program.opts());

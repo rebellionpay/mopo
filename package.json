@@ -10,11 +10,14 @@
   "author": "Rebellion Pay",
   "license": "MIT",
   "repository": "https://github.com/rebellionpay/mopo",
-  "main": "index.js",
+  "main": "dist/index.js",
   "types": "index.d.ts",
   "files": [
     "dist/**/*"
   ],
+  "bin": {
+    "mopo": "./dist/index.js"
+  },
   "scripts": {
     "build": "npm run clean && npm run lint && tsc",
     "clean": "rm -r ./dist || true",
