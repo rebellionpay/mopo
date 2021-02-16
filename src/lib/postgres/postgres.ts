@@ -16,13 +16,13 @@ class Postgres {
     }
 
     async connect(): Promise<void> {
-        Logger.log('info', `Launching postgres/connect`);
+        Logger.log('info', 'Launching postgres/connect');
         await this.client.connect();
         this.prepare();
     }
 
     async prepare() {
-        Logger.log('info', `Launching postgres/prepare`);
+        Logger.log('info', 'Launching postgres/prepare');
         this.client
             .on('notification', (m) => Logger.log('info', m))
             .on('error', (err) => Logger.log('info', err))
@@ -30,7 +30,7 @@ class Postgres {
             .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }
     async disconnect(): Promise<void> {
-        Logger.log('info', `Launching postgres/disconnect`);
+        Logger.log('info', 'Launching postgres/disconnect');
         return this.client.end();
     }
 
@@ -74,7 +74,7 @@ class Postgres {
 
         const sql = Utils.format(baseSQL, opt.replace ? 'REPLACE' : 'INSERT', table.tableName, colList.join(', '), valList.join(', '));
 
-        Logger.log('debug', "INSERT", sql);
+        Logger.log('debug', 'INSERT', sql);
         await this.client.query(sql);
     }
 
@@ -89,7 +89,7 @@ class Postgres {
         const baseSQL = 'UPDATE "%s" SET %s WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, [...setList, ...toDeleteList].join(', '), whereList.join(' AND '));
-        Logger.log('debug', "UPDATE", sql);
+        Logger.log('debug', 'UPDATE', sql);
         await this.client.query(sql);
     }
 
@@ -98,7 +98,7 @@ class Postgres {
         const baseSQL = 'DELETE FROM "%s" WHERE %s';
 
         const sql = Utils.format(baseSQL, table.tableName, whereList.join(' AND '));
-        Logger.log('debug', "DELETE", sql);
+        Logger.log('debug', 'DELETE', sql);
         await this.client.query(sql);
     }
 }

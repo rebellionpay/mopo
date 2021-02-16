@@ -10,7 +10,7 @@ enum MongoOperation {
 }
 
 function parseMongoOperation(operation: string): MongoOperation | undefined {
-    return Object.values(MongoOperation).find((op) => op.toString().toUpperCase() == operation.toUpperCase());
+    return Object.values(MongoOperation).find((op) => op.toString().toUpperCase() === operation.toUpperCase());
 }
 
 export { parseMongoOperation, MongoOperation };

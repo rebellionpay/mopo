@@ -18,21 +18,21 @@ class Mongo {
     }
 
     async start() {
-        Logger.log('info', `Launching mongo/start`);
+        Logger.log('info', 'Launching mongo/start');
         await this.connect();
         this.prepare();
     }
     async connect(): Promise<void> {
-        Logger.log('info', `Launching mongo/connect`);
+        Logger.log('info', 'Launching mongo/connect');
         this.client = await mongoose.connect(this.uri, this.options);
     }
     async disconnect(): Promise<void> {
-        Logger.log('info', `Launching mongo/disconnect`);
+        Logger.log('info', 'Launching mongo/disconnect');
         return this.client?.disconnect();
     }
 
     async prepare() {
-        Logger.log('info', `Launching mongo/prepare`);
+        Logger.log('info', 'Launching mongo/prepare');
         mongoose.connection.on('error', (err) => Logger.log('error', 'mongoose error', err));
     }
 
@@ -45,7 +45,7 @@ class Mongo {
 
         let resolvedCount = 0;
         const cursor = mCollection.find(filter).skip(resolvedCount).stream();
-        Logger.log('info', `Launching mongo/findBulk`, `withIndex: ${resolvedCount}`);
+        Logger.log('info', 'Launching mongo/findBulk', `withIndex: ${resolvedCount}`);
         cursor.on('error', async (err) => {
             Logger.log('error', 'mongoose findAll error', err);
 

@@ -1,4 +1,4 @@
-import { MongoOperation } from "./MongoOperation";
+import { MongoOperation } from './MongoOperation';
 
 interface GeneralResponse {
     clusterTime?: Date;
