@@ -173,8 +173,8 @@ const program = new Command();
 program
     .option('-s, --start <config file>', 'start sync with config file')
     .option('-c, --create-tables', 'Create tables', false)
-    .option('-sa, --sync-all', 'Sync all data if syncAll in config sync')
-    .option('-lo, --listen-only <collection>', 'Listen only given collections. Independent of --sync-all.')
+    .option('-sa, --sync-all', 'Sync all data if syncAll in config sync. Dependent of --listen-only')
+    .option('-lo, --listen-only <collection>', 'Listen only given collections.')
     .option('-bi, --bulk-insert <number>', 'Number of documents to insert at once (only works if --sync-all enabled). Default 10.')
     .option('-l, --log-level <level>', 'Log level')
     .option('-sl, --strict-listen', 'Strict listen mode. If error in listen exit happens');
