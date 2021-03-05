@@ -40,7 +40,7 @@ async function main(options: OptionValues): Promise<void> {
                 let operations: (MongoOperation | undefined)[] = watchOperations.map((operationStr) => parseMongoOperation(operationStr));
                 operations = operations.filter((op) => typeof op !== 'undefined');
 
-                if (options.syncAll && syncAllConfig) {
+                if (options.syncAll && syncAllConfig && !options.listenOnly) {
                     await syncAll(mongo, postgres, collection, table, {
                         bulkInsert: {
                             active: typeof options.bulkInsert !== 'undefined',
