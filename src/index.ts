@@ -25,6 +25,7 @@ async function main(options: OptionValues): Promise<void> {
             const config: Config = await loadConfig(options.start);
 
             const listenOnlys = options.listenOnly ? options.listenOnly.split(',') : [];
+            const syncOnlys = options.syncAllOnly ? options.syncAllOnly.split(',') : [];
 
             const mongo: Mongo = new Mongo(config.mongo.connection.uri, config.mongo.connection.options);
             const postgres: Postgres = new Postgres(config.postgres.connection.config);
@@ -32,8 +33,10 @@ async function main(options: OptionValues): Promise<void> {
             await postgres.connect();
             prepareExit(mongo, postgres);
 
-            for (const { collection, watchOperations, syncAll: syncAllConfig } of config.sync) {
+            for (const { collection, watchOperations } of config.sync) {
                 const isThisListening = typeof listenOnlys.find((c: string) => c === collection) !== 'undefined';
+                const isThisSyncAll = typeof syncOnlys.find((c: string) => c === collection) !== 'undefined';
+
                 const tableSchema = config.mongo.collectionModels[collection];
 
                 const table = await postgres.getTable(collection, tableSchema, { create: options.createTables, ifNotExists: true });
@@ -41,7 +44,7 @@ async function main(options: OptionValues): Promise<void> {
                 let operations: (MongoOperation | undefined)[] = watchOperations.map((operationStr) => parseMongoOperation(operationStr));
                 operations = operations.filter((op) => typeof op !== 'undefined');
 
-                if (options.syncAll && syncAllConfig && !(options.listenOnly && isThisListening)) {
+                if ((options.syncAll || isThisSyncAll) && !(options.listenOnly && isThisListening)) {
                     await syncAll(mongo, postgres, collection, table, {
                         bulkInsert: {
                             active: typeof options.bulkInsert !== 'undefined',
@@ -174,8 +177,9 @@ const program = new Command();
 program
     .option('-s, --start <config file>', 'start sync with config file')
     .option('-c, --create-tables', 'Create tables', false)
-    .option('-sa, --sync-all', 'Sync all data if syncAll in config sync. Dependent of --listen-only')
-    .option('-lo, --listen-only <collection>', 'Listen only given collections.')
+    .option('-sa, --sync-all', 'Sync all data from all collections')
+    .option('-sao, --sync-all-only <collections>', 'Sync all data from listed')
+    .option('-lo, --listen-only <collections>', 'Listen only given collections.')
     .option('-bi, --bulk-insert <number>', 'Number of documents to insert at once (only works if --sync-all enabled). Default 10.')
     .option('-l, --log-level <level>', 'Log level')
     .option('-sl, --strict-listen', 'Strict listen mode. If error in listen exit happens');
