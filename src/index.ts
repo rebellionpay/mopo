@@ -24,6 +24,8 @@ async function main(options: OptionValues): Promise<void> {
         if (options.start) {
             const config: Config = await loadConfig(options.start);
 
+            const listenOnlys = options.listenOnly ? options.listenOnly.split(',') : [];
+
             const mongo: Mongo = new Mongo(config.mongo.connection.uri, config.mongo.connection.options);
             const postgres: Postgres = new Postgres(config.postgres.connection.config);
             await mongo.start();
@@ -33,7 +35,7 @@ async function main(options: OptionValues): Promise<void> {
             for (const { collection, watchOperations, syncAll: syncAllConfig } of config.sync) {
                 const tableSchema = config.mongo.collectionModels[collection];
 
-                const table = await postgres.createTable(collection, tableSchema);
+                const table = await postgres.getTable(collection, tableSchema, { create: options.createTables, ifNotExists: true });
 
                 let operations: (MongoOperation | undefined)[] = watchOperations.map((operationStr) => parseMongoOperation(operationStr));
                 operations = operations.filter((op) => typeof op !== 'undefined');
@@ -47,56 +49,63 @@ async function main(options: OptionValues): Promise<void> {
                     });
                 }
 
-                mongo.listen(collection, operations as MongoOperation[], async (change?: WatchResponse, error?: Error) => {
-                    if (error) {
-                        return Logger.log('error', error);
-                    }
+                if ((options.listenOnly && listenOnlys.find((c: string) => c === collection)) || !options.listenOnly) {
+                    mongo.listen(collection, operations as MongoOperation[], async (change?: WatchResponse, error?: Error) => {
+                        if (error) {
+                            return Logger.log('error', error);
+                        }
 
-                    if (change?.additional) {
-                        switch (change.additional) {
-                            case 'close':
-                                Logger.log('verbose', 'Mongo listen close');
+                        if (change?.additional) {
+                            switch (change.additional) {
+                                case 'close':
+                                    Logger.log('verbose', 'Mongo listen close');
+                                    break;
+                                case 'end':
+                                    Logger.log('verbose', 'Mongo listen end');
+                                    break;
+                                case 'erroned':
+                                    Logger.log('error', 'Mongo listen erroned');
+                                    if (options.strictListen) process.exit(1);
+                                    break;
+                                default:
+                                    break;
+                            }
+                            return;
+                        }
+
+
+                        switch (change?.operation) {
+                            case MongoOperation.INSERT:
+                                Logger.log('verbose', 'INSERTING DOCUMENT OF ' + table.tableName);
+
+                                const { toInsert } = change as InsertResponse;
+                                const insertConverted = convertToPostgresValues(toInsert, table.columns);
+
+                                await postgres.insert(table, insertConverted);
                                 break;
-                            case 'end':
-                                Logger.log('verbose', 'Mongo listen end');
+                            case MongoOperation.UPDATE:
+                                Logger.log('verbose', 'UPDATE DOCUMENT OF ' + table.tableName);
+
+                                const { toUpdate, toDelete, wheres: updateWheres } = change as UpdateResponse;
+                                const convertedWheresUpdate: PostgresValue[] = convertToPostgresValues(updateWheres, table.columns);
+                                const updateConverted = convertToPostgresValues(toUpdate, table.columns);
+
+                                await postgres.update(table, updateConverted, (toDelete as string[]), convertedWheresUpdate);
+                                break;
+                            case MongoOperation.DELETE:
+                                Logger.log('verbose', 'DELETE DOCUMENT OF ' + table.tableName);
+
+                                const { wheres: deleteWheres } = change as DeleteResponse;
+                                const convertedWheresDelete: PostgresValue[] = convertToPostgresValues(deleteWheres, table.columns);
+
+                                await postgres.delete(table, convertedWheresDelete);
+                                break;
                             default:
+                                Logger.log('verbose', 'NOT IMPLEMENTED ERROR', change);
                                 break;
                         }
-                        return;
-                    }
-
-
-                    switch (change?.operation) {
-                        case MongoOperation.INSERT:
-                            Logger.log('verbose', 'INSERTING DOCUMENT OF ' + table.tableName);
-
-                            const { toInsert } = change as InsertResponse;
-                            const insertConverted = convertToPostgresValues(toInsert, table.columns);
-
-                            await postgres.insert(table, insertConverted);
-                            break;
-                        case MongoOperation.UPDATE:
-                            Logger.log('verbose', 'UPDATE DOCUMENT OF ' + table.tableName);
-
-                            const { toUpdate, toDelete, wheres: updateWheres } = change as UpdateResponse;
-                            const convertedWheresUpdate: PostgresValue[] = convertToPostgresValues(updateWheres, table.columns);
-                            const updateConverted = convertToPostgresValues(toUpdate, table.columns);
-
-                            await postgres.update(table, updateConverted, (toDelete as string[]), convertedWheresUpdate);
-                            break;
-                        case MongoOperation.DELETE:
-                            Logger.log('verbose', 'DELETE DOCUMENT OF ' + table.tableName);
-
-                            const { wheres: deleteWheres } = change as DeleteResponse;
-                            const convertedWheresDelete: PostgresValue[] = convertToPostgresValues(deleteWheres, table.columns);
-
-                            await postgres.delete(table, convertedWheresDelete);
-                            break;
-                        default:
-                            Logger.log('verbose', 'NOT IMPLEMENTED ERROR', change);
-                            break;
-                    }
-                });
+                    });
+                }
             }
         }
     } catch (error) {
@@ -163,9 +172,12 @@ const program = new Command();
 
 program
     .option('-s, --start <config file>', 'start sync with config file')
+    .option('-c, --create-tables', 'Create tables', false)
     .option('-sa, --sync-all', 'Sync all data if syncAll in config sync')
+    .option('-lo, --listen-only <collection>', 'Listen only given collections. Independent of --sync-all.')
     .option('-bi, --bulk-insert <number>', 'Number of documents to insert at once (only works if --sync-all enabled). Default 10.')
-    .option('-l, --log-level <level>', 'Log level');
+    .option('-l, --log-level <level>', 'Log level')
+    .option('-sl, --strict-listen', 'Strict listen mode. If error in listen exit happens');
 
 if (process.argv.length === 2) program.help();
 program.parse(process.argv);

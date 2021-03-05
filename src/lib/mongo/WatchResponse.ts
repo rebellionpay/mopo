@@ -7,7 +7,7 @@ interface GeneralResponse {
         coll: string
     },
     operation?: MongoOperation;
-    additional?: 'close' | 'end';
+    additional?: 'close' | 'end' | 'erroned';
     hasNext?: boolean
 }
 

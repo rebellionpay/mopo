@@ -79,7 +79,13 @@ class Mongo {
         const changeStream = mCollection.watch().stream();
 
         changeStream
-            .on('error', (err) => Logger.log('error', 'mongoose changeStream error', err))
+            .on('error', async (err) => {
+                Logger.log('error', 'mongoose changeStream error', err);
+                if (!changeStream.isClosed()) {
+                    await changeStream.close();
+                }
+                callback({ additional: 'erroned' });
+            })
             .on('close', () => callback({ additional: 'close' }))
             .on('end', () => callback({ additional: 'end' }))
             .on('data', async (change: any) => {

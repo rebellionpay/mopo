@@ -34,11 +34,15 @@ class Postgres {
         return this.client.end();
     }
 
-    async createTable(tableName: string, tableSchema: object, opt: { ifNotExists: boolean } = { ifNotExists: true }): Promise<PostgresTable> {
+    async getTable(tableName: string, tableSchema: object, opt: { create?: boolean, ifNotExists: boolean }): Promise<PostgresTable> {
+        Logger.log('verbose', `getTable ${tableName}`, 'create', opt.create, 'ifNotExists', opt.ifNotExists);
         const columns: ColumnType[] = getColumnsFromSchema(tableSchema);
-        const baseSQL = `CREATE TABLE ${opt.ifNotExists ? 'IF NOT EXISTS' : ''} %s (%s)`;
-        const sql = Utils.format(baseSQL, tableName, columnsToCreateTableStr(columns));
-        await this.client.query(sql);
+
+        if (opt.create) {
+            const baseSQL = `CREATE TABLE ${opt.ifNotExists ? 'IF NOT EXISTS' : ''} %s (%s)`;
+            const sql = Utils.format(baseSQL, tableName, columnsToCreateTableStr(columns));
+            await this.client.query(sql);
+        }
 
         const table: PostgresTable = { tableName, columns };
         return table;
