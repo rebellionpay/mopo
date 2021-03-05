@@ -10,6 +10,7 @@ class Mongo {
     options: mongoose.ConnectOptions;
     client: mongoose.Mongoose | undefined;
     queueChangesListener: EventEmitter;
+    listeners: string[] = [];
 
     constructor(uri: string, options: mongoose.ConnectOptions) {
         this.uri = uri;
@@ -72,6 +73,7 @@ class Mongo {
         });
     }
     async listen(collection: string, operations: MongoOperation[], callback: (res?: WatchResponse, error?: Error) => Promise<void>) {
+        this.listeners.push(collection);
         Logger.log('info', `Launching ${require.main?.filename}/listen - ${collection}`);
         const wantedOperations: string[] = operations.map((operation) => operation.toString());
         const mCollection = mongoose.connection.collection(collection);

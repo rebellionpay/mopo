@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command, OptionValues } from 'commander';
-import exitHook from 'exit-hook';
+import Graceful from 'node-graceful';
 import ora from 'ora';
 
 import { Config, loadConfig } from './lib/config';
@@ -15,6 +15,7 @@ import PostgresValue from './lib/postgres/PostgresValue';
 
 import { convertToPostgresValues } from './utils/postgres.util';
 
+Graceful.captureExceptions = true;
 
 async function main(options: OptionValues): Promise<void> {
     try {
@@ -111,6 +112,10 @@ async function main(options: OptionValues): Promise<void> {
                     });
                 }
             }
+            if (mongo.listeners.length === 0) {
+                Logger.log('info', 'Listeners count ' + mongo.listeners.length, 'Closing...');
+                await exit(mongo, postgres);
+            }
         }
     } catch (error) {
         Logger.log('error', 'ERROR', error);
@@ -164,13 +169,16 @@ function syncAll(mongo: Mongo, postgres: Postgres, collection: string, table: Po
 
 
 function prepareExit(mongo: Mongo, postgres: Postgres): void {
-    exitHook(async () => {
-        Logger.log('info', 'Disconnecting from databases');
-        await mongo.disconnect();
-        await postgres.disconnect();
+    Graceful.on('exit', async () => {
+        await exit(mongo, postgres)
     });
 }
 
+async function exit(mongo: Mongo, postgres: Postgres) {
+    Logger.log('info', 'Disconnecting from databases');
+    await mongo.disconnect();
+    await postgres.disconnect();
+}
 
 const program = new Command();
 
