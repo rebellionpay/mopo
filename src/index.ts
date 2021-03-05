@@ -33,6 +33,7 @@ async function main(options: OptionValues): Promise<void> {
             prepareExit(mongo, postgres);
 
             for (const { collection, watchOperations, syncAll: syncAllConfig } of config.sync) {
+                const isThisListening = typeof listenOnlys.find((c: string) => c === collection) !== 'undefined';
                 const tableSchema = config.mongo.collectionModels[collection];
 
                 const table = await postgres.getTable(collection, tableSchema, { create: options.createTables, ifNotExists: true });
@@ -40,7 +41,7 @@ async function main(options: OptionValues): Promise<void> {
                 let operations: (MongoOperation | undefined)[] = watchOperations.map((operationStr) => parseMongoOperation(operationStr));
                 operations = operations.filter((op) => typeof op !== 'undefined');
 
-                if (options.syncAll && syncAllConfig && !options.listenOnly) {
+                if (options.syncAll && syncAllConfig && !(options.listenOnly && isThisListening)) {
                     await syncAll(mongo, postgres, collection, table, {
                         bulkInsert: {
                             active: typeof options.bulkInsert !== 'undefined',
@@ -49,7 +50,7 @@ async function main(options: OptionValues): Promise<void> {
                     });
                 }
 
-                if ((options.listenOnly && listenOnlys.find((c: string) => c === collection)) || !options.listenOnly) {
+                if ((options.listenOnly && isThisListening) || !options.listenOnly) {
                     mongo.listen(collection, operations as MongoOperation[], async (change?: WatchResponse, error?: Error) => {
                         if (error) {
                             return Logger.log('error', error);
