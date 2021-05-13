@@ -1,10 +1,11 @@
 import { Client, ClientConfig } from 'pg';
-import Utils from 'util';
-import { deleteIgnoredColumns, getColumnsFromSchema } from '../../utils/mongo.utils';
-import { columnsToCreateTableStr, escape } from '../../utils/postgres.util';
-import Logger from '../logger';
 import { ColumnType, PostgresTable } from './PostgresTable';
+import { columnsToCreateTableStr, escape } from '../../utils/postgres.util';
+import { deleteIgnoredColumns, getColumnsFromSchema } from '../../utils/mongo.utils';
+
+import Logger from '../logger';
 import PostgresValue from './PostgresValue';
+import Utils from 'util';
 
 class Postgres {
     client: Client;
@@ -15,17 +16,17 @@ class Postgres {
         this.client = client;
     }
 
-    async connect(): Promise<void> {
+    async connect(error: (err: Error) => void): Promise<void> {
         Logger.log('info', 'Launching postgres/connect');
         await this.client.connect();
-        this.prepare();
+        this.prepare(error);
     }
 
-    async prepare() {
+    async prepare(error: (err: Error) => void) {
         Logger.log('info', 'Launching postgres/prepare');
         this.client
             .on('notification', (m) => Logger.log('info', m))
-            .on('error', (err) => Logger.log('info', err))
+            .on('error', (err: Error) => error(err))
             .on('notice', (m) => Logger.log('info', m))
             .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }

@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-import { Command, OptionValues } from 'commander';
-import Graceful from 'node-graceful';
-import ora from 'ora';
 
+import { Command, OptionValues } from 'commander';
 import { Config, loadConfig } from './lib/config';
+import { DeleteResponse, InsertResponse, UpdateResponse, WatchResponse } from './lib/mongo/WatchResponse';
+import { MongoOperation, parseMongoOperation } from './lib/mongo/MongoOperation';
+
+import Graceful from 'node-graceful';
 import Logger from './lib/logger';
 import { Mongo } from './lib/mongo/mongo';
-import { MongoOperation, parseMongoOperation } from './lib/mongo/MongoOperation';
-import Timer from './lib/timer';
 import { Postgres } from './lib/postgres/postgres';
-import { DeleteResponse, InsertResponse, UpdateResponse, WatchResponse } from './lib/mongo/WatchResponse';
 import { PostgresTable } from './lib/postgres/PostgresTable';
 import PostgresValue from './lib/postgres/PostgresValue';
-
+import Timer from './lib/timer';
 import { convertToPostgresValues } from './utils/postgres.util';
+import ora from 'ora';
 
 Graceful.captureExceptions = true;
 
@@ -30,9 +30,12 @@ async function main(options: OptionValues): Promise<void> {
 
             const mongo: Mongo = new Mongo(config.mongo.connection.uri, config.mongo.connection.options);
             const postgres: Postgres = new Postgres(config.postgres.connection.config);
+
             await mongo.start();
-            await postgres.connect();
-            prepareExit(mongo, postgres);
+            await postgres.connect((err) => {
+                Logger.log('error', err);
+                if (options.strictListen) process.exit(1);
+            });
 
             for (const { collection, watchOperations } of config.sync) {
                 const isThisListening = typeof listenOnlys.find((c: string) => c === collection) !== 'undefined';
