@@ -34,7 +34,9 @@ async function main(options: OptionValues): Promise<void> {
             await mongo.start();
             await postgres.connect((err) => {
                 Logger.log('error', err);
-                if (options.strictListen) process.exit(1);
+                if (err.severity === 'FATAL' && options.strictListen) {
+                    process.exit(1);
+                }
             });
 
             for (const { collection, watchOperations } of config.sync) {

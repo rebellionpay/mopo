@@ -16,17 +16,17 @@ class Postgres {
         this.client = client;
     }
 
-    async connect(error: (err: Error) => void): Promise<void> {
+    async connect(error: (err: { [key: string]: any }) => void): Promise<void> {
         Logger.log('info', 'Launching postgres/connect');
         await this.client.connect();
         this.prepare(error);
     }
 
-    async prepare(error: (err: Error) => void) {
+    async prepare(error: (err: { [key: string]: any }) => void) {
         Logger.log('info', 'Launching postgres/prepare');
         this.client
             .on('notification', (m) => Logger.log('info', m))
-            .on('error', (err: Error) => error(err))
+            .on('error', (err) => error(err))
             .on('notice', (m) => Logger.log('info', m))
             .on('end', () => Logger.log('info', 'POSTGRES CONNECTION END'));
     }
