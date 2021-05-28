@@ -1,16 +1,15 @@
-import mongoose from 'mongoose';
 import EventEmitter from 'events';
-
 import Logger from '../logger';
 import { MongoOperation } from './MongoOperation';
 import { WatchResponse } from './WatchResponse';
+import mongoose from 'mongoose';
 
 class Mongo {
     uri: string;
     options: mongoose.ConnectOptions;
     client: mongoose.Mongoose | undefined;
     queueChangesListener: EventEmitter;
-    listeners: string[] = [];
+    listeners: any[] = [];
 
     constructor(uri: string, options: mongoose.ConnectOptions) {
         this.uri = uri;
@@ -29,7 +28,7 @@ class Mongo {
     }
     async disconnect(): Promise<void> {
         Logger.log('info', 'Launching mongo/disconnect');
-        return this.client?.disconnect();
+        await this.client?.disconnect();
     }
 
     async prepare() {
@@ -73,12 +72,12 @@ class Mongo {
         });
     }
     async listen(collection: string, operations: MongoOperation[], callback: (res?: WatchResponse, error?: Error) => Promise<void>) {
-        this.listeners.push(collection);
         Logger.log('info', `Launching ${require.main?.filename}/listen - ${collection}`);
         const wantedOperations: string[] = operations.map((operation) => operation.toString());
         const mCollection = mongoose.connection.collection(collection);
 
         const changeStream = mCollection.watch().stream();
+        this.listeners.push(changeStream);
 
         changeStream
             .on('error', async (err) => {
