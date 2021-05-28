@@ -15,7 +15,7 @@ import Timer from './lib/timer';
 import { convertToPostgresValues } from './utils/postgres.util';
 import ora from 'ora';
 
-Graceful.captureExceptions = true;
+Graceful.captureExceptions = false;
 
 async function main(options: OptionValues): Promise<void> {
     try {
@@ -58,6 +58,7 @@ async function main(options: OptionValues): Promise<void> {
                         }
                     });
                 }
+                prepareExit(mongo, postgres);
 
                 if ((options.listenOnly && isThisListening) || !options.listenOnly) {
                     mongo.listen(collection, operations as MongoOperation[], async (change?: WatchResponse, error?: Error) => {
