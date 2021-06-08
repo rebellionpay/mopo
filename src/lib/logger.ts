@@ -16,7 +16,7 @@ class Logger {
     }
 
     static log = (type: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly', ...args: any[]) => {
-        const argsStr = args.map((arg) => typeof arg === 'object' ? JSON.stringify(arg) : arg);
+        const argsStr = args.map((arg) => typeof arg === 'object' ? (arg instanceof Error ? `Error message : ${arg.message} | Error stack : ${arg.stack}` : JSON.stringify(arg)) : arg);
         Logger.logger.log(type, argsStr.join(' | '));
     };
 }
