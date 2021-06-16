@@ -41,7 +41,6 @@
   "dependencies": {
     "@types/exit-hook": "^2.2.1",
     "commander": "^7.0.0",
-    "lodash": "^4.17.20",
     "mongoose": "^5.11.12",
     "node-graceful": "^3.0.1",
     "ora": "^5.3.0",

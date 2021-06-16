@@ -1,5 +1,4 @@
 import { ColumnType } from '../lib/postgres/PostgresTable';
-import _ from 'lodash';
 import PostgresValue from '../lib/postgres/PostgresValue';
 
 function getColumnsFromSchema(tableSchema: { [key: string]: any }): ColumnType[] {
